@@ -1,0 +1,573 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汪汪的功率训练系统</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --pause: #f39c12;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        #pauseBtn {
+            background-color: var(--pause);
+        }
+        
+        .btn-danger {
+            background-color: var(--accent);
+        }
+        
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .data-card {
+            background-color: var(--light);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .data-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+            color: var(--dark);
+        }
+        
+        .data-label {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        
+        .device-status {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 0.9em;
+        }
+        
+        .status-connected {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .status-disconnected {
+            color: var(--accent);
+            font-weight: bold;
+        }
+        
+        .summary-panel {
+            display: none;
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .summary-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+        
+        .power-control {
+            margin: 20px 0;
+        }
+        
+        .power-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .power-slider {
+            flex: 1;
+        }
+        
+        .power-value {
+            min-width: 60px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        #targetPowerValue {
+            font-size: 1.2em;
+        }
+        
+        .device-item {
+            margin-bottom: 15px;
+        }
+        
+        @media (max-width: 600px) {
+            .data-grid, .summary-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            button {
+                flex: 100%;
+            }
+            
+            .power-slider-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>汪汪的功率训练系统</h1>
+        <p>"骑不动!要爆了!"</p>
+    </header>
+    
+    <div class="panel">
+        <h2>设备连接</h2>
+        <div class="device-item">
+            <button id="connectHrBtn">心率设备</button>
+            <div class="device-status" id="hrStatus">
+                状态: <span class="status-disconnected">未连接</span>
+            </div>
+        </div>
+        <div class="device-item">
+            <button id="connectCadenceBtn">踏频设备</button>
+            <div class="device-status" id="cadenceStatus">
+                状态: <span class="status-disconnected">未连接</span>
+            </div>
+        </div>
+        <div class="device-item">
+            <button id="connectPowerBtn">功率设备</button>
+            <div class="device-status" id="powerStatus">
+                状态: <span class="status-disconnected">未连接</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="panel">
+        <h2>实时数据</h2>
+        <div class="data-grid">
+            <div class="data-card">
+                <div class="data-label">当前功率</div>
+                <div class="data-value" id="currentPower">--</div>
+                <div class="data-label">W</div>
+            </div>
+            <div class="data-card">
+                <div class="data-label">心率</div>
+                <div class="data-value" id="heartRate">--</div>
+                <div class="data-label">BPM</div>
+            </div>
+            <div class="data-card">
+                <div class="data-label">踏频</div>
+                <div class="data-value" id="cadence">--</div>
+                <div class="data-label">RPM</div>
+            </div>
+            <div class="data-card">
+                <div class="data-label">训练时间</div>
+                <div class="data-value" id="timer">00:00:00</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>训练控制</h2>
+        <div class="button-group">
+            <button id="startBtn" disabled>开始训练</button>
+            <button id="pauseBtn" disabled>暂停</button>
+            <button id="stopBtn" disabled>结束训练</button>
+        </div>
+        
+        <div class="power-control">
+            <h3>目标功率设置</h3>
+            <div class="power-slider-container">
+                <input type="range" id="targetPowerSlider" class="power-slider" 
+                       min="0" max="1000" value="200" step="5">
+                <div class="power-value">
+                    <span id="targetPowerValue">200</span> W
+                </div>
+                <button id="applyPowerBtn" disabled>应用</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="panel summary-panel" id="summaryPanel">
+        <div class="summary-title">训练总结</div>
+        <div class="summary-grid">
+            <div class="data-card">
+                <div class="data-label">总时间</div>
+                <div class="data-value" id="totalTime">--</div>
+            </div>
+            <div class="data-card">
+                <div class="data-label">平均心率</div>
+                <div class="data-value" id="avgHeartRate">--</div>
+                <div class="data-label">BPM</div>
+            </div>
+            <div class="data-card">
+                <div class="data-label">平均功率</div>
+                <div class="data-value" id="avgPower">--</div>
+                <div class="data-label">W</div>
+            </div>
+            <div class="data-card">
+                <div class="data-label">卡路里</div>
+                <div class="data-value" id="totalCalories">--</div>
+                <div class="data-label">kcal</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 设备服务UUID
+        const HEART_RATE_SERVICE = '0000180d-0000-1000-8000-00805f9b34fb';
+        const CYCLING_POWER_SERVICE = '00001818-0000-1000-8000-00805f9b34fb';
+        const CSC_SERVICE = '00001816-0000-1000-8000-00805f9b34fb';
+        const FITNESS_MACHINE_SERVICE = '00001826-0000-1000-8000-00805f9b34fb';
+        
+        // 全局变量
+        let bluetoothDevice;
+        let trainerCharacteristic;
+        let trainingData = {
+            startTime: null,
+            secondsElapsed: 0,
+            activeSeconds: 0, // 实际骑行时间（排除暂停时间）
+            timerInterval: null,
+            isPaused: false,
+            powerReadings: [], // 存储所有功率读数
+            heartRateReadings: [], // 存储所有心率读数
+            lastPowerTimestamp: null, // 记录上次功率读数时间
+            targetPower: 200 // 默认目标功率200W
+        };
+        
+        // 更新设备状态
+        function updateDeviceStatus(deviceType, connected) {
+            const statusElement = document.querySelector(`#${deviceType}Status span`);
+            if (connected) {
+                statusElement.textContent = '已连接';
+                statusElement.className = 'status-connected';
+            } else {
+                statusElement.textContent = '未连接';
+                statusElement.className = 'status-disconnected';
+            }
+        }
+        
+        // 设备连接函数
+        async function connectDevice(serviceUuid, deviceType) {
+            try {
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [serviceUuid] }],
+                    optionalServices: [HEART_RATE_SERVICE, CYCLING_POWER_SERVICE, CSC_SERVICE, FITNESS_MACHINE_SERVICE]
+                });
+                
+                const server = await bluetoothDevice.gatt.connect();
+                updateDeviceStatus(deviceType, true);
+                
+                // 根据服务类型设置不同特性
+                if (serviceUuid === HEART_RATE_SERVICE) {
+                    const service = await server.getPrimaryService(HEART_RATE_SERVICE);
+                    const characteristic = await service.getCharacteristic('00002a37-0000-1000-8000-00805f9b34fb');
+                    await characteristic.startNotifications();
+                    characteristic.addEventListener('characteristicvaluechanged', handleHeartRateData);
+                } else if (serviceUuid === CYCLING_POWER_SERVICE) {
+                    const service = await server.getPrimaryService(CYCLING_POWER_SERVICE);
+                    const characteristic = await service.getCharacteristic('00002a63-0000-1000-8000-00805f9b34fb');
+                    await characteristic.startNotifications();
+                    characteristic.addEventListener('characteristicvaluechanged', handlePowerData);
+                } else if (serviceUuid === FITNESS_MACHINE_SERVICE) {
+                    // 连接骑行台控制服务
+                    const service = await server.getPrimaryService(FITNESS_MACHINE_SERVICE);
+                    trainerCharacteristic = await service.getCharacteristic('00002ad9-0000-1000-8000-00805f9b34fb');
+                    document.getElementById('applyPowerBtn').disabled = false;
+                }
+                
+                document.getElementById('startBtn').disabled = false;
+            } catch (error) {
+                console.error("连接失败:", error);
+                updateDeviceStatus(deviceType, false);
+            }
+        }
+        
+        // 处理心率数据
+        function handleHeartRateData(event) {
+            const value = event.target.value;
+            // 心率数据解析
+            const flags = value.getUint8(0);
+            let heartRate;
+            if (flags & 0x1) {
+                heartRate = value.getUint16(1, true);
+            } else {
+                heartRate = value.getUint8(1);
+            }
+            
+            document.getElementById('heartRate').textContent = heartRate;
+            
+            // 只在训练中且未暂停时记录心率
+            if (trainingData.startTime && !trainingData.isPaused) {
+                trainingData.heartRateReadings.push(heartRate);
+            }
+        }
+        
+        // 处理功率数据
+        function handlePowerData(event) {
+            const value = event.target.value;
+            // 功率数据解析
+            const flags = value.getUint16(0, true);
+            const power = value.getInt16(2, true);
+            
+            document.getElementById('currentPower').textContent = power;
+            
+            const now = new Date();
+            
+            // 只在训练中且未暂停时记录功率
+            if (trainingData.startTime && !trainingData.isPaused && power > 0) {
+                trainingData.powerReadings.push(power);
+                
+                // 计算有效骑行时间（基于功率数据间隔）
+                if (trainingData.lastPowerTimestamp) {
+                    const timeDiff = (now - trainingData.lastPowerTimestamp) / 1000; // 秒
+                    trainingData.activeSeconds += timeDiff;
+                }
+                trainingData.lastPowerTimestamp = now;
+            }
+        }
+        
+        // 设置骑行台目标功率
+        async function setTrainerTargetPower(power) {
+            if (!trainerCharacteristic) {
+                console.error("骑行台未连接");
+                return;
+            }
+            
+            try {
+                // 创建功率控制数据包
+                const data = new Uint8Array(3);
+                const view = new DataView(data.buffer);
+                
+                // 操作码: 0x31 表示设置目标功率
+                view.setUint8(0, 0x31);
+                // 功率值 (小端序)
+                view.setUint16(1, power, true);
+                
+                await trainerCharacteristic.writeValue(data);
+                console.log(`已设置目标功率: ${power}W`);
+                
+                trainingData.targetPower = power;
+            } catch (error) {
+                console.error("设置目标功率失败:", error);
+            }
+        }
+        
+        // 开始训练
+        function startTraining() {
+            trainingData.startTime = new Date();
+            trainingData.secondsElapsed = 0;
+            trainingData.activeSeconds = 0;
+            trainingData.isPaused = false;
+            trainingData.powerReadings = [];
+            trainingData.heartRateReadings = [];
+            trainingData.lastPowerTimestamp = null;
+            
+            trainingData.timerInterval = setInterval(() => {
+                if (!trainingData.isPaused) {
+                    trainingData.secondsElapsed++;
+                    updateTimer();
+                }
+            }, 1000);
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = false;
+            
+            // 应用当前目标功率
+            setTrainerTargetPower(trainingData.targetPower);
+            
+            // 隐藏总结面板
+            document.getElementById('summaryPanel').style.display = 'none';
+        }
+        
+        // 暂停/继续训练
+        function togglePause() {
+            trainingData.isPaused = !trainingData.isPaused;
+            document.getElementById('pauseBtn').textContent = trainingData.isPaused ? "继续" : "暂停";
+            
+            // 暂停时重置最后功率时间戳
+            if (trainingData.isPaused) {
+                trainingData.lastPowerTimestamp = null;
+                // 暂停时将功率设置为0
+                setTrainerTargetPower(0);
+            } else {
+                // 恢复时重新设置目标功率
+                setTrainerTargetPower(trainingData.targetPower);
+            }
+        }
+        
+        // 结束训练
+        function stopTraining() {
+            clearInterval(trainingData.timerInterval);
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = true;
+            
+            // 将功率设置为0
+            setTrainerTargetPower(0);
+            
+            // 显示训练总结
+            showTrainingSummary();
+        }
+        
+        // 更新计时器显示
+        function updateTimer() {
+            const hours = Math.floor(trainingData.secondsElapsed / 3600);
+            const minutes = Math.floor((trainingData.secondsElapsed % 3600) / 60);
+            const seconds = trainingData.secondsElapsed % 60;
+            
+            document.getElementById('timer').textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // 计算卡路里消耗
+        function calculateCalories() {
+            // 简化公式: 卡路里 = 平均功率(W) × 时间(h) × 3.6
+            if (trainingData.powerReadings.length > 0) {
+                const avgPower = trainingData.powerReadings.reduce((sum, val) => sum + val, 0) / trainingData.powerReadings.length;
+                const hours = trainingData.activeSeconds / 3600;
+                return avgPower * hours * 3.6;
+            }
+            return 0;
+        }
+        
+        // 显示训练总结
+        function showTrainingSummary() {
+            // 计算总时间
+            const hours = Math.floor(trainingData.secondsElapsed / 3600);
+            const minutes = Math.floor((trainingData.secondsElapsed % 3600) / 60);
+            const seconds = trainingData.secondsElapsed % 60;
+            document.getElementById('totalTime').textContent = 
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // 计算平均心率
+            if (trainingData.heartRateReadings.length > 0) {
+                const avgHeartRate = Math.round(
+                    trainingData.heartRateReadings.reduce((sum, val) => sum + val, 0) / trainingData.heartRateReadings.length
+                );
+                document.getElementById('avgHeartRate').textContent = avgHeartRate;
+            }
+            
+            // 计算平均功率（排除零值和暂停时间）
+            if (trainingData.powerReadings.length > 0) {
+                const avgPower = Math.round(
+                    trainingData.powerReadings.reduce((sum, val) => sum + val, 0) / trainingData.powerReadings.length
+                );
+                document.getElementById('avgPower').textContent = avgPower;
+            }
+            
+            // 计算卡路里
+            const calories = calculateCalories();
+            document.getElementById('totalCalories').textContent = calories.toFixed(1);
+            
+            // 显示总结面板
+            document.getElementById('summaryPanel').style.display = 'block';
+        }
+        
+        // 事件监听
+        document.getElementById('connectHrBtn').addEventListener('click', () => connectDevice(HEART_RATE_SERVICE, 'hr'));
+        document.getElementById('connectCadenceBtn').addEventListener('click', () => connectDevice(CSC_SERVICE, 'cadence'));
+        document.getElementById('connectPowerBtn').addEventListener('click', () => connectDevice(CYCLING_POWER_SERVICE, 'power'));
+        document.getElementById('startBtn').addEventListener('click', startTraining);
+        document.getElementById('pauseBtn').addEventListener('click', togglePause);
+        document.getElementById('stopBtn').addEventListener('click', stopTraining);
+        
+        // 目标功率滑块事件
+        const targetPowerSlider = document.getElementById('targetPowerSlider');
+        const targetPowerValue = document.getElementById('targetPowerValue');
+        
+        targetPowerSlider.addEventListener('input', function() {
+            const power = parseInt(this.value);
+            targetPowerValue.textContent = power;
+        });
+        
+        document.getElementById('applyPowerBtn').addEventListener('click', function() {
+            const power = parseInt(targetPowerSlider.value);
+            setTrainerTargetPower(power);
+        });
+        
+        // 初始化检查
+        if (!navigator.bluetooth) {
+            alert("您的浏览器不支持Web蓝牙API，请使用Chrome或Edge浏览器");
+        }
+    </script>
+</body>
+</html>
